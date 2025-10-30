@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import EmailDisplay from './components/EmailDisplay';
 import InboxList from './components/InboxList';
 import EmailDetail from './components/EmailDetail';
-import { generateRandomEmail, fetchEmails, readEmail } from './services/emailService';
+import { generateRandomEmail, fetchEmails, readEmail, deleteEmail } from './services/emailService';
 import { EmailPreview, EmailContent } from './types';
 import { MailIcon } from './components/icons';
 
@@ -30,6 +30,9 @@ const App: React.FC = () => {
       const { email, sid_token } = await generateRandomEmail();
       setCurrentEmail(email);
       setSidToken(sid_token);
+      // Fetch initial emails after generating new one
+      const initialEmails = await fetchEmails(sid_token);
+      setEmails(initialEmails);
     } catch (e) {
       setError('Failed to generate a new email address. Please try again.');
     } finally {
@@ -42,12 +45,14 @@ const App: React.FC = () => {
     setIsInboxLoading(true);
     try {
       const fetchedEmails = await fetchEmails(sidToken);
-      // Prevent re-selecting email if the list is just refreshed
+      // Merge new emails with existing ones, avoiding duplicates.
       setEmails(prevEmails => {
-          if (JSON.stringify(prevEmails) !== JSON.stringify(fetchedEmails)) {
-              return fetchedEmails;
-          }
-          return prevEmails;
+          const allEmails = [...prevEmails, ...fetchedEmails];
+          const uniqueEmailsMap = new Map(allEmails.map(e => [e.id, e]));
+          const uniqueEmails = Array.from(uniqueEmailsMap.values());
+          // Sort by date, newest first
+          uniqueEmails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          return uniqueEmails;
       });
     } catch (e) {
        // Silently fail on refresh, don't show error for polling
@@ -57,18 +62,30 @@ const App: React.FC = () => {
     }
   }, [sidToken]);
 
+  const handleDeleteEmail = useCallback(async (id: number) => {
+    if (!sidToken) return;
+
+    // Optimistically update UI
+    setEmails(prev => prev.filter(e => e.id !== id));
+    if (selectedEmailId === id) {
+        setSelectedEmailId(null);
+        setEmailContent(null);
+    }
+
+    try {
+        await deleteEmail(sidToken, [id]);
+    } catch (e) {
+        setError('Failed to delete email from server. It may reappear on refresh.');
+        // Optionally, add the email back to the list if deletion fails
+        console.error(e);
+    }
+  }, [sidToken, selectedEmailId]);
+
   useEffect(() => {
     handleGenerateNewEmail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (sidToken) {
-      handleFetchEmails(); // Fetch immediately
-      const interval = setInterval(handleFetchEmails, 5000); // Poll every 5 seconds
-      return () => clearInterval(interval);
-    }
-  }, [sidToken, handleFetchEmails]);
 
   useEffect(() => {
     const fetchEmailContent = async () => {
@@ -116,16 +133,16 @@ const App: React.FC = () => {
             
             <div className="mt-4 flex-grow h-[calc(100vh-180px)] border border-gray-700/50 rounded-lg shadow-xl overflow-hidden bg-gray-800/20 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4">
                 {/* Mobile View */}
-                <div className="md:hidden">
+                <div className="md:hidden h-full">
                     {!selectedEmailId ? (
                         <div className="h-full flex flex-col">
                             <h2 className="p-4 text-lg font-semibold border-b border-gray-700 flex-shrink-0">Inbox</h2>
                             <div className="overflow-y-auto flex-grow">
-                                <InboxList emails={emails} onSelectEmail={handleSelectEmail} selectedEmailId={selectedEmailId} isLoading={isInboxLoading} />
+                                <InboxList emails={emails} onSelectEmail={handleSelectEmail} selectedEmailId={selectedEmailId} isLoading={isInboxLoading} onDeleteEmail={handleDeleteEmail} />
                             </div>
                         </div>
                     ) : (
-                        <EmailDetail emailContent={emailContent} isLoading={isEmailLoading} onClose={handleCloseDetail} />
+                        <EmailDetail emailContent={emailContent} isLoading={isEmailLoading} onClose={handleCloseDetail} onDelete={handleDeleteEmail} isRefreshing={isInboxLoading} />
                     )}
                 </div>
 
@@ -133,11 +150,11 @@ const App: React.FC = () => {
                 <div className="hidden md:flex md:flex-col col-span-1 lg:col-span-1 border-r border-gray-700">
                     <h2 className="p-4 text-lg font-semibold border-b border-gray-700 flex-shrink-0">Inbox ({emails.length})</h2>
                     <div className="overflow-y-auto flex-grow">
-                         <InboxList emails={emails} onSelectEmail={handleSelectEmail} selectedEmailId={selectedEmailId} isLoading={isInboxLoading} />
+                         <InboxList emails={emails} onSelectEmail={handleSelectEmail} selectedEmailId={selectedEmailId} isLoading={isInboxLoading} onDeleteEmail={handleDeleteEmail} />
                     </div>
                 </div>
-                <div className="hidden md:block col-span-2 lg:col-span-3">
-                     <EmailDetail emailContent={emailContent} isLoading={isEmailLoading} onClose={handleCloseDetail}/>
+                <div className="hidden md:block col-span-2 lg:col-span-3 overflow-hidden">
+                     <EmailDetail emailContent={emailContent} isLoading={isEmailLoading} onClose={handleCloseDetail} onDelete={handleDeleteEmail} isRefreshing={isInboxLoading}/>
                 </div>
             </div>
         </main>

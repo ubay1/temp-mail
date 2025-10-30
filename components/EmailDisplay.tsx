@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { CopyIcon, CheckIcon, RefreshIcon, NewEmailIcon } from './icons';
+import { CopyIcon, CheckIcon } from './icons';
 
 interface EmailDisplayProps {
   email: string | null;
@@ -57,18 +56,16 @@ const EmailDisplay: React.FC<EmailDisplayProps> = ({ email, onNewEmail, onRefres
           <button
             onClick={onRefresh}
             disabled={!email}
-            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-all"
+            className="flex items-center justify-center w-full sm:w-auto px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-semibold rounded-md transition-all"
           >
-            <RefreshIcon className="w-5 h-5" />
-            <span className="hidden sm:inline">Refresh</span>
+            Refresh
           </button>
           <button
             onClick={onNewEmail}
             disabled={isGenerating}
-            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:cursor-wait text-white font-semibold rounded-md transition-all"
+            className="flex items-center justify-center w-full sm:w-auto px-4 py-2 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:cursor-wait text-white font-semibold rounded-md transition-all"
           >
-            <NewEmailIcon className="w-5 h-5" />
-            <span className="hidden sm:inline">New</span>
+            Change Email
           </button>
         </div>
       </div>
