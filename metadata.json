@@ -1,0 +1,5 @@
+{
+  "name": "Temp Mail Inbox",
+  "description": "A secure and private temporary email generator. Get a disposable email address to receive emails without revealing your primary inbox.",
+  "requestFramePermissions": []
+}
